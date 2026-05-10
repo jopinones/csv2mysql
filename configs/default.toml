@@ -1,0 +1,17 @@
+# Configuración de ejemplo para csv2mysql
+
+[database]
+host = "localhost"
+port = 3306
+database = "contribuciones"
+username = "etl_user"
+password = "your_password_here"
+max_connections = 10
+timeout_seconds = 30
+
+# Configuración general
+max_file_size_mb = 100
+default_batch_size = 1000
+retry_attempts = 5
+retry_backoff_ms = 100
+log_level = "info"

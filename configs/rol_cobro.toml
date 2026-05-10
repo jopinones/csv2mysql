@@ -1,0 +1,47 @@
+# Configuración de mapeo para Rol de Cobro
+table_name = "rol_cobro"
+delimiter = ';'
+encoding = "UTF-8"
+has_header = true
+skip_rows = 0
+unique_keys = ["rut", "periodo"]
+batch_size = 1000
+
+# Configuración de columnas
+[columns.RUT]
+rename = "rut"
+sql_type = "VARCHAR(12)"
+nullable = false
+
+[columns."NOMBRE CONTRIBUYENTE"]
+rename = "nombre_contribuyente"
+sql_type = "VARCHAR(255)"
+nullable = false
+
+[columns.AVALUO]
+rename = "avaluo"
+sql_type = "DECIMAL(18,2)"
+nullable = true
+default = "0.00"
+
+[columns."FECHA EMISION"]
+rename = "fecha_emision"
+sql_type = "DATE"
+nullable = true
+date_format = "%d/%m/%Y"
+
+[columns.PERIODO]
+rename = "periodo"
+sql_type = "INT"
+nullable = false
+
+[columns.MONTO]
+rename = "monto"
+sql_type = "DECIMAL(18,2)"
+nullable = false
+
+[columns.OBSERVACIONES]
+rename = "observaciones"
+sql_type = "TEXT"
+nullable = true
+skip = false

@@ -1,0 +1,903 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>carga — Terminal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  :root {
+    /* Yaru Dark (Ubuntu) -- default */
+    --wp:#7B2D5C;            /* desktop wallpaper aubergine */
+    --wp2:#3A1438;
+    --shell-bg:#2C2C2C;       /* header bar */
+    --shell-border:#0E0E0E;
+    --shell-fg:#EDEDED;
+    --term-bg:#1B1A19;        /* terminal background */
+    --term-fg:#E8E2D6;
+    --term-dim:#8A847A;
+    --term-mute:#5C564E;
+    --rule:#39342E;
+    --rule-strong:#4A443B;
+    --accent:#E27D60;         /* warm orange */
+    --accent-soft:rgba(226,125,96,0.18);
+    --ok:#8FB87A;
+    --ok-soft:rgba(143,184,122,0.18);
+    --info:#7FA9C4;
+    --info-soft:rgba(127,169,196,0.18);
+    --warn:#D9B76A;
+    --err:#C77873;
+    --selection:rgba(226,125,96,0.22);
+    --shadow:0 30px 80px -20px rgba(0,0,0,0.6), 0 8px 30px -10px rgba(0,0,0,0.45);
+  }
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background:
+      radial-gradient(120% 90% at 70% 10%, var(--wp) 0%, var(--wp2) 55%, #1A0A1B 100%);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: var(--shell-fg);
+    overflow: hidden;
+  }
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 36px;
+    box-sizing: border-box;
+  }
+  /* Subtle wallpaper grain */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,0.05) 50%, transparent 51%),
+      radial-gradient(1px 1px at 70% 60%, rgba(255,255,255,0.04) 50%, transparent 51%),
+      radial-gradient(1px 1px at 40% 80%, rgba(255,255,255,0.03) 50%, transparent 51%);
+    background-size: 220px 220px, 180px 180px, 260px 260px;
+    mix-blend-mode: overlay;
+    opacity: 0.6;
+  }
+  /* ---- Top Activities/Date bar (very subtle, optional) ---- */
+  .topbar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 28px;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: rgba(255,255,255,0.85);
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 14px;
+    z-index: 1;
+    font-family: 'Inter', sans-serif;
+    letter-spacing: 0.02em;
+  }
+  .topbar .left { display:flex; align-items:center; gap:18px; }
+  .topbar .center { font-weight: 500; opacity: 0.92;}
+  .topbar .right { display:flex; align-items:center; gap:12px; opacity: 0.85;}
+  .ind { display:inline-flex; align-items:center; gap:6px;}
+  .ind svg { display:block; }
+  /* ---- Window ---- */
+  .window {
+    width: 1100px;
+    height: 720px;
+    border-radius: 12px;
+    background: var(--shell-bg);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--shell-border);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    z-index: 2;
+  }
+  .titlebar {
+    height: 38px;
+    background: linear-gradient(180deg, #353433 0%, #2A2929 100%);
+    border-bottom: 1px solid #0a0a0a;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 10px;
+    user-select: none;
+  }
+  .traffic {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #4a4744;
+    border: 1px solid rgba(0,0,0,0.45);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+  }
+  .dot.min { background:#3D3A37; }
+  .dot.max { background:#3D3A37; }
+  .dot.close { background:#3D3A37; }
+  .titlebar:hover .dot.close { background:#E27D60; }
+  .titlebar:hover .dot.max { background:#A0A0A0; }
+  .titlebar:hover .dot.min { background:#A0A0A0; }
+  .title {
+    flex: 1;
+    text-align: center;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    color: #C7C2BA;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+  }
+  .title .crumb { color: #7A736A; font-weight: 400; }
+  .titlebar .menu {
+    display:flex; gap: 6px;
+    color: #8A847A;
+    font-size: 12px;
+    align-items: center;
+  }
+  .menu-btn {
+    width: 26px; height: 22px;
+    display:inline-flex; align-items:center; justify-content:center;
+    border-radius: 4px;
+  }
+  .menu-btn:hover { background: rgba(255,255,255,0.06);}
+  /* ---- Terminal area ---- */
+  .term {
+    flex: 1;
+    background: var(--term-bg);
+    color: var(--term-fg);
+    font-family: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    padding: 14px 18px 12px 18px;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+  .term::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(120% 80% at 50% 0%, rgba(255,255,255,0.025) 0%, transparent 45%);
+  }
+  /* ---- TUI primitives ---- */
+  .tui-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 8px;
+    border-bottom: 1px dashed var(--rule-strong);
+    margin-bottom: 10px;
+  }
+  .brand {
+    display:flex; align-items:baseline; gap: 10px;
+    font-weight: 600;
+  }
+  .brand .logo {
+    color: var(--accent);
+    letter-spacing: 0.04em;
+  }
+  .brand .v { color: var(--term-mute); font-weight: 500; font-size: 12px;}
+  .brand .path { color: var(--term-dim); font-weight: 400; }
+  .brand .path .sep { color: var(--term-mute); margin: 0 4px;}
+  .hk { color: var(--term-dim); font-size: 12px;}
+  .hk b { color: var(--accent); font-weight: 600;}
+
+  .tui-body {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 14px;
+    min-height: 0;
+  }
+  .pane {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .pane-title {
+    color: var(--term-dim);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    font-weight: 600;
+    padding: 2px 4px 8px 4px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .pane-title .dotmark {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  .pane-title .count { margin-left: auto; color: var(--term-mute); letter-spacing: 0.08em;}
+  /* ---- Tree ---- */
+  .tree {
+    flex: 1;
+    overflow: hidden;
+    background: rgba(255,255,255,0.012);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 8px 4px;
+  }
+  .row {
+    display: flex; align-items: center;
+    padding: 2px 10px;
+    color: var(--term-fg);
+    border-radius: 3px;
+    white-space: nowrap;
+    position: relative;
+    font-feature-settings: "liga" 0;
+  }
+  .row .gut { width: 14px; color: var(--term-mute);}
+  .row .ico { width: 18px; color: var(--term-dim);}
+  .row .name { flex: 1;}
+  .row .meta { color: var(--term-mute); font-size: 11px; padding-left: 8px;}
+  .row.dir > .name { color: var(--info);}
+  .row.dir.open > .ico { color: var(--info);}
+  .row.file { color: var(--term-fg); }
+  .row.indent-1 { padding-left: 24px;}
+  .row.indent-2 { padding-left: 38px;}
+  .row.indent-3 { padding-left: 52px;}
+  .row.selected {
+    background: var(--selection);
+    color: var(--term-fg);
+  }
+  .row.selected::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 2px; bottom: 2px;
+    width: 2px; background: var(--accent); border-radius: 0 2px 2px 0;
+  }
+  .row.selected > .name { color: var(--accent); font-weight: 600;}
+  .row.checked > .ico { color: var(--ok);}
+  .row.checked > .name::after {
+    content: " ✓";
+    color: var(--ok);
+    font-weight: 700;
+  }
+  .row.cursor::after {
+    content: "";
+    display: inline-block;
+    width: 7px; height: 14px;
+    background: var(--accent);
+    margin-left: 6px;
+    vertical-align: middle;
+    animation: blink 1.05s steps(2, start) infinite;
+  }
+  @keyframes blink { to { opacity: 0; } }
+  .tree-foot {
+    color: var(--term-dim);
+    font-size: 11px;
+    padding: 8px 6px 0 6px;
+    display: flex; gap: 12px; flex-wrap: wrap;
+  }
+  .kbd {
+    display: inline-flex; align-items: center;
+    padding: 1px 6px;
+    border: 1px solid var(--rule-strong);
+    border-radius: 3px;
+    color: var(--term-fg);
+    background: rgba(255,255,255,0.03);
+    font-size: 10.5px;
+    margin-right: 4px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  /* ---- Right pane sections ---- */
+  .stack {
+    display: flex; flex-direction: column;
+    gap: 12px;
+    flex: 1;
+    min-height: 0;
+  }
+  .card {
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    background: rgba(255,255,255,0.012);
+    position: relative;
+  }
+  .card .hd {
+    position: absolute;
+    top: -8px; left: 12px;
+    background: var(--term-bg);
+    padding: 0 8px;
+    font-size: 11px;
+    color: var(--term-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    font-weight: 600;
+  }
+  .card .hd .num { color: var(--accent); margin-right: 4px;}
+  .card .body { padding: 14px 16px; }
+  /* ---- Selection details ---- */
+  .kv-grid {
+    display: grid;
+    grid-template-columns: 90px 1fr;
+    row-gap: 4px;
+    column-gap: 14px;
+    align-items: baseline;
+  }
+  .kv-grid .k { color: var(--term-mute); font-size: 12px;}
+  .kv-grid .v { color: var(--term-fg);}
+  .kv-grid .v .badge {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: var(--info-soft);
+    color: var(--info);
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .kv-grid .v .dim { color: var(--term-dim); margin-left: 6px;}
+  /* ---- Buttons ---- */
+  .btn-row {
+    display: flex; gap: 10px; padding: 10px 16px 14px 16px;
+  }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 14px;
+    border: 1px solid var(--rule-strong);
+    border-radius: 4px;
+    background: rgba(255,255,255,0.02);
+    color: var(--term-fg);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+  }
+  .btn .k {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 18px; height: 18px;
+    border-radius: 3px;
+    background: rgba(255,255,255,0.06);
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .btn.primary {
+    background: var(--accent);
+    color: #1B1A19;
+    border-color: var(--accent);
+  }
+  .btn.primary .k {
+    background: rgba(0,0,0,0.18);
+    color: #1B1A19;
+  }
+  .btn.ghost { color: var(--term-dim); }
+  .btn.ghost .k { background: transparent; border:1px solid var(--rule-strong); }
+  /* ---- Progress ---- */
+  .progress-wrap {
+    padding: 0 16px 14px 16px;
+  }
+  .progress-meta {
+    display: flex; justify-content: space-between;
+    font-size: 11px; color: var(--term-dim);
+    text-transform: uppercase; letter-spacing: 0.16em;
+    margin-bottom: 6px;
+  }
+  .progress-meta .right { color: var(--term-fg); letter-spacing: 0.04em;}
+  .progress-meta .right b { color: var(--accent); font-weight: 700;}
+  .pbar {
+    height: 12px;
+    background:
+      repeating-linear-gradient(90deg, transparent 0 7px, rgba(255,255,255,0.04) 7px 8px),
+      var(--rule);
+    border-radius: 2px;
+    overflow: hidden;
+    position: relative;
+  }
+  .pfill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent) 0%, #F0A07F 100%);
+    width: 67%;
+    box-shadow: 0 0 10px var(--accent-soft);
+    transition: width 0.5s linear;
+    position: relative;
+  }
+  .pfill::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(45deg,
+      rgba(255,255,255,0.0) 0 8px,
+      rgba(255,255,255,0.10) 8px 10px);
+    animation: stripes 1s linear infinite;
+  }
+  @keyframes stripes {
+    from { background-position: 0 0; }
+    to { background-position: 28px 0; }
+  }
+  .stages {
+    display: flex; gap: 12px;
+    margin-top: 10px;
+    font-size: 11px;
+    color: var(--term-dim);
+  }
+  .stage { display:flex; align-items:center; gap:6px;}
+  .stage.done { color: var(--ok); }
+  .stage.active { color: var(--accent); }
+  .stage .pip {
+    width: 7px; height: 7px; border-radius: 50%; background: currentColor;
+    box-shadow: 0 0 0 3px rgba(255,255,255,0.04);
+  }
+  .stage.active .pip { animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse {
+    0%,100% { box-shadow: 0 0 0 3px var(--accent-soft);}
+    50% { box-shadow: 0 0 0 6px rgba(226,125,96,0.06);}
+  }
+  /* ---- Log ---- */
+  .log {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    padding: 12px 16px 10px 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--term-fg);
+    position: relative;
+  }
+  .log .line { display: flex; gap: 10px; white-space: nowrap; }
+  .log .ts { color: var(--term-mute); }
+  .log .lvl { width: 50px; flex: none; font-weight: 600; letter-spacing: 0.04em;}
+  .log .lvl.info { color: var(--info);}
+  .log .lvl.ok { color: var(--ok);}
+  .log .lvl.warn { color: var(--warn);}
+  .log .lvl.err { color: var(--err);}
+  .log .msg { color: var(--term-fg);}
+  .log .msg .em { color: var(--accent); font-weight: 600;}
+  .log .msg .dim { color: var(--term-dim);}
+  .log .msg .tag {
+    display: inline-block;
+    padding: 0 5px;
+    border: 1px solid var(--rule-strong);
+    border-radius: 3px;
+    color: var(--term-dim);
+    font-size: 11px;
+    margin: 0 2px;
+  }
+  .log .cursor {
+    display: inline-block;
+    width: 7px; height: 14px;
+    background: var(--term-fg);
+    vertical-align: -2px;
+    animation: blink 1s steps(2, start) infinite;
+  }
+  /* ---- Status bar ---- */
+  .statusbar {
+    height: 26px;
+    display: flex;
+    align-items: center;
+    background: linear-gradient(180deg, #161514 0%, #0F0E0D 100%);
+    border-top: 1px solid #0a0a0a;
+    color: var(--term-dim);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    padding: 0 14px;
+    gap: 18px;
+  }
+  .statusbar .seg {
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .statusbar .seg .label { color: var(--term-mute); text-transform: uppercase; letter-spacing: 0.14em; font-size: 10.5px;}
+  .statusbar .seg .v { color: var(--term-fg);}
+  .statusbar .spacer { flex: 1; }
+  .statusbar .pip {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--ok);
+    box-shadow: 0 0 0 3px var(--ok-soft);
+    animation: pulse-ok 2s ease-in-out infinite;
+  }
+  @keyframes pulse-ok {
+    0%,100% { box-shadow: 0 0 0 3px var(--ok-soft);}
+    50% { box-shadow: 0 0 0 6px rgba(143,184,122,0.06);}
+  }
+  /* ---- Bottom hotkey hints ---- */
+  .hotkeys {
+    display: flex;
+    gap: 16px;
+    padding: 8px 16px 4px 16px;
+    color: var(--term-dim);
+    font-size: 11px;
+  }
+  .hotkeys span b {
+    color: var(--accent); font-weight: 700;
+    margin-right: 4px;
+  }
+  /* Theme: yaru-light */
+  body[data-theme="light"] {
+    --wp:#E0DDD7;
+    --wp2:#C9C5BD;
+    --shell-bg:#EDEAE5;
+    --shell-border:#9A968F;
+    --shell-fg:#1F1E1C;
+    --term-bg:#FBF8F2;
+    --term-fg:#1F1E1C;
+    --term-dim:#6F6A60;
+    --term-mute:#A09A8E;
+    --rule:#E2DDD3;
+    --rule-strong:#CFC8BB;
+    --accent:#C0492B;
+    --accent-soft:rgba(192,73,43,0.14);
+    --ok:#3F8C49;
+    --ok-soft:rgba(63,140,73,0.14);
+    --info:#3D6E94;
+    --info-soft:rgba(61,110,148,0.14);
+    --warn:#9C7A1F;
+    --err:#A33A33;
+    --selection:rgba(192,73,43,0.10);
+  }
+  body[data-theme="light"] .titlebar {
+    background: linear-gradient(180deg, #DAD5CC 0%, #C9C3B8 100%);
+    border-bottom: 1px solid #9A968F;
+  }
+  body[data-theme="light"] .title { color: #2A2826; }
+  body[data-theme="light"] .term::before { background: none;}
+  body[data-theme="light"] .statusbar {
+    background: linear-gradient(180deg, #E5E0D6 0%, #D8D2C5 100%);
+    border-top: 1px solid #9A968F;
+  }
+  body[data-theme="light"] .pfill::after { opacity: 0.6;}
+  /* Theme: aubergine (classic Ubuntu) */
+  body[data-theme="aubergine"] {
+    --term-bg:#300A24;
+    --term-fg:#FFFFFF;
+    --term-dim:#C8AEC2;
+    --term-mute:#85628B;
+    --rule:#4A1B3D;
+    --rule-strong:#5E2A4F;
+    --accent:#E95420;
+    --accent-soft:rgba(233,84,32,0.20);
+    --ok:#73C36D;
+    --info:#75A1FF;
+    --selection:rgba(233,84,32,0.22);
+  }
+  /* Accent variations */
+  body[data-accent="blue"] { --accent:#7FA9C4; --accent-soft:rgba(127,169,196,0.18); --selection:rgba(127,169,196,0.20);}
+  body[data-accent="violet"] { --accent:#B08AB8; --accent-soft:rgba(176,138,184,0.18); --selection:rgba(176,138,184,0.20);}
+  body[data-accent="green"] { --accent:#8FB87A; --accent-soft:rgba(143,184,122,0.18); --selection:rgba(143,184,122,0.20);}
+</style>
+</head>
+<body data-theme="dark" data-accent="orange">
+  <!-- Subtle GNOME top bar -->
+  <div class="topbar">
+    <div class="left">
+      <span style="font-weight:600">Actividades</span>
+      <span style="opacity:0.7">Terminal</span>
+    </div>
+    <div class="center">jue 9 may · 12:04</div>
+    <div class="right">
+      <span class="ind" title="Red"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 11l6 -6 6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="13" r="1" fill="currentColor"/></svg></span>
+      <span class="ind" title="Volumen"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 6v4h2l3 2V4L4 6H2z" fill="currentColor"/><path d="M10 5c1.5 1 1.5 5 0 6" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg></span>
+      <span>92%</span>
+    </div>
+  </div>
+
+  <!-- Terminal window -->
+  <div class="window" id="window">
+    <!-- Title bar -->
+    <div class="titlebar">
+      <div class="traffic">
+        <span class="dot min" title="Minimizar"></span>
+        <span class="dot max" title="Maximizar"></span>
+        <span class="dot close" title="Cerrar"></span>
+      </div>
+      <div class="title">carga <span class="crumb">— /datos/contribuciones — Terminal</span></div>
+      <div class="menu">
+        <span class="menu-btn" title="Nueva pestaña">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+        </span>
+        <span class="menu-btn" title="Menú">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="3" cy="8" r="1.2" fill="currentColor"/><circle cx="8" cy="8" r="1.2" fill="currentColor"/><circle cx="13" cy="8" r="1.2" fill="currentColor"/></svg>
+        </span>
+      </div>
+    </div>
+
+    <!-- Terminal area -->
+    <div class="term">
+      <!-- TUI Header -->
+      <div class="tui-header">
+        <div class="brand">
+          <span class="logo">▲ carga</span>
+          <span class="v">v0.4.2</span>
+          <span class="path">~ <span class="sep">/</span> datos <span class="sep">/</span> contribuciones</span>
+        </div>
+        <div class="hk">
+          <span><b>?</b> ayuda</span>
+          &nbsp;·&nbsp;
+          <span><b>:</b> comando</span>
+          &nbsp;·&nbsp;
+          <span><b>q</b> salir</span>
+        </div>
+      </div>
+
+      <!-- Body -->
+      <div class="tui-body">
+        <!-- LEFT: Tree pane -->
+        <div class="pane">
+          <div class="pane-title">
+            <span class="dotmark"></span>
+            Árbol de carpetas
+            <span class="count">3 dirs · 1 sel</span>
+          </div>
+          <div class="tree">
+            <div class="row dir open"><span class="gut">▾</span><span class="ico">📁</span><span class="name">datos/</span></div>
+            <div class="row dir indent-1"><span class="gut">▸</span><span class="ico">📁</span><span class="name">catastro/</span><span class="meta">12 archivos</span></div>
+            <div class="row dir open indent-1 selected"><span class="gut">▾</span><span class="ico">📁</span><span class="name">rol_cobro/</span><span class="meta">3 archivos · 8.4 MB</span></div>
+            <div class="row file indent-2"><span class="gut">·</span><span class="ico">▸</span><span class="name">rol_2024_s1.csv</span><span class="meta">3.8 MB</span></div>
+            <div class="row file indent-2 checked"><span class="gut">·</span><span class="ico">▸</span><span class="name">rol_2024_s2.csv</span><span class="meta">4.2 MB</span></div>
+            <div class="row file indent-2 cursor"><span class="gut">·</span><span class="ico">▸</span><span class="name">rol_2025_s1.csv</span><span class="meta">412 KB</span></div>
+            <div class="row dir indent-1"><span class="gut">▸</span><span class="ico">📁</span><span class="name">exenciones/</span><span class="meta">5 archivos</span></div>
+            <div class="row dir indent-1"><span class="gut">▸</span><span class="ico">📁</span><span class="name">predios/</span><span class="meta">28 archivos</span></div>
+            <div class="row dir"><span class="gut">▸</span><span class="ico">📁</span><span class="name">configs/</span></div>
+          </div>
+          <div class="tree-foot">
+            <span><span class="kbd">↑↓</span>navegar</span>
+            <span><span class="kbd">⏎</span>abrir</span>
+            <span><span class="kbd">␣</span>marcar</span>
+            <span><span class="kbd">/</span>buscar</span>
+          </div>
+        </div>
+
+        <!-- RIGHT: Execution panel -->
+        <div class="pane">
+          <div class="pane-title">
+            <span class="dotmark" style="background:var(--accent)"></span>
+            Panel de ejecución
+            <span class="count">proceso_id 42 · running</span>
+          </div>
+          <div class="stack">
+
+            <!-- Selection card -->
+            <div class="card">
+              <div class="hd"><span class="num">01</span>Selección</div>
+              <div class="body">
+                <div class="kv-grid">
+                  <span class="k">Archivo</span>
+                  <span class="v">rol_2024_s2.csv <span class="dim">· 4.2 MB · 18 cols · 12 500 filas</span></span>
+                  <span class="k">Tabla</span>
+                  <span class="v">contribuciones_staging <span class="badge">staging</span></span>
+                  <span class="k">Mapeo</span>
+                  <span class="v">configs/rol_cobro.toml <span class="dim">· sha 8f3a…91</span></span>
+                  <span class="k">Modo</span>
+                  <span class="v">INSERT IGNORE <span class="dim">· batch 1 000 · paralelo 4</span></span>
+                </div>
+              </div>
+              <div class="btn-row">
+                <button class="btn primary"><span class="k">E</span>Ejecutar</button>
+                <button class="btn"><span class="k">D</span>Dry-run</button>
+                <button class="btn"><span class="k">V</span>Validar</button>
+                <button class="btn ghost" style="margin-left:auto"><span class="k">R</span>Reintentar</button>
+              </div>
+            </div>
+
+            <!-- Progress card -->
+            <div class="card">
+              <div class="hd"><span class="num">02</span>Progreso</div>
+              <div class="progress-wrap" style="padding-top:14px">
+                <div class="progress-meta">
+                  <span>Cargando · batch 8 / 13</span>
+                  <span class="right"><b>67%</b> · 8 420 / 12 500 filas · ETA 00:00:21</span>
+                </div>
+                <div class="pbar"><div class="pfill" id="pfill"></div></div>
+                <div class="stages">
+                  <span class="stage done"><span class="pip"></span>Schema</span>
+                  <span class="stage done"><span class="pip"></span>Validación</span>
+                  <span class="stage active"><span class="pip"></span>Inserción</span>
+                  <span class="stage"><span class="pip"></span>Verificación</span>
+                  <span class="stage"><span class="pip"></span>Commit</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Log card -->
+            <div class="card" style="flex:1; min-height:0; display:flex; flex-direction:column;">
+              <div class="hd"><span class="num">03</span>Log en vivo</div>
+              <div class="log" id="log">
+                <div class="line"><span class="ts">12:04:01</span><span class="lvl info">INFO</span><span class="msg">conectado a <span class="em">mysql://etl_user@localhost:3306/contribuciones</span></span></div>
+                <div class="line"><span class="ts">12:04:01</span><span class="lvl ok">OK</span><span class="msg">inferencia de schema · <span class="em">18 columnas</span> <span class="dim">(varchar 11, decimal 4, date 2, int 1)</span></span></div>
+                <div class="line"><span class="ts">12:04:02</span><span class="lvl warn">WARN</span><span class="msg">3 advertencias en <span class="tag">columna 7</span> · valores vacíos coercidos a <span class="em">NULL</span></span></div>
+                <div class="line"><span class="ts">12:04:02</span><span class="lvl ok">OK</span><span class="msg">validación · <span class="em">0 errores</span> · <span class="dim">3 warnings</span></span></div>
+                <div class="line"><span class="ts">12:04:03</span><span class="lvl info">INFO</span><span class="msg">batch <span class="em">1/13</span> insertado <span class="dim">(1 000 filas · 184 ms)</span></span></div>
+                <div class="line"><span class="ts">12:04:04</span><span class="lvl info">INFO</span><span class="msg">batch <span class="em">5/13</span> insertado <span class="dim">(5 000 filas · 901 ms)</span></span></div>
+                <div class="line"><span class="ts">12:04:05</span><span class="lvl info">INFO</span><span class="msg">batch <span class="em">8/13</span> insertado <span class="dim">(8 000 filas · 1.42 s)</span></span></div>
+                <div class="line"><span class="ts">12:04:06</span><span class="lvl ok">OK</span><span class="msg">checkpoint guardado · <span class="tag">proceso_id=42</span> <span class="tag">status=RUNNING</span><span class="cursor"></span></span></div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Hotkeys footer -->
+      <div class="hotkeys">
+        <span><b>E</b>ejecutar</span>
+        <span><b>D</b>dry-run</span>
+        <span><b>V</b>validar</span>
+        <span><b>L</b>log completo</span>
+        <span><b>C</b>copiar SQL</span>
+        <span><b>R</b>reintentar</span>
+        <span><b>:</b>comando</span>
+        <span><b>q</b>salir</span>
+      </div>
+    </div>
+
+    <!-- Status bar -->
+    <div class="statusbar">
+      <span class="seg"><span class="pip"></span><span class="v">conectado</span></span>
+      <span class="seg"><span class="label">MySQL</span><span class="v">localhost:3306 / contribuciones</span></span>
+      <span class="seg"><span class="label">user</span><span class="v">etl_user</span></span>
+      <span class="seg"><span class="label">trx</span><span class="v">#42 · running</span></span>
+      <span class="spacer"></span>
+      <span class="seg"><span class="label">throughput</span><span class="v">5 921 filas/s</span></span>
+      <span class="seg"><span class="label">mem</span><span class="v">42.1 MB</span></span>
+      <span class="seg"><span class="v" style="color:var(--accent)">NORMAL</span></span>
+    </div>
+  </div>
+
+  <!-- Tweaks panel -->
+  <script type="text/babel" src="tweaks-panel.jsx"></script>
+  <div id="tweaks-root"></div>
+  <script type="text/babel">
+    const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+      "theme": "aubergine",
+      "accent": "orange",
+      "showWallpaper": true,
+      "showTopbar": true,
+      "progress": 67,
+      "blink": true
+    }/*EDITMODE-END*/;
+
+    function App() {
+      const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+
+      React.useEffect(() => {
+        document.body.dataset.theme = t.theme;
+        document.body.dataset.accent = t.accent;
+      }, [t.theme, t.accent]);
+
+      React.useEffect(() => {
+        document.body.style.background = t.showWallpaper
+          ? ""
+          : "#101010";
+        document.querySelector('.topbar').style.display = t.showTopbar ? '' : 'none';
+      }, [t.showWallpaper, t.showTopbar]);
+
+      React.useEffect(() => {
+        const fill = document.getElementById('pfill');
+        if (fill) fill.style.width = t.progress + '%';
+        const meta = document.querySelector('.progress-meta .right');
+        if (meta) {
+          const rows = Math.round(12500 * t.progress / 100);
+          meta.innerHTML = `<b>${t.progress}%</b> · ${rows.toLocaleString('es-CL').replace(',', ' ')} / 12 500 filas · ETA 00:00:${String(Math.max(0, 60 - Math.round(t.progress*0.6))).padStart(2,'0')}`;
+        }
+      }, [t.progress]);
+
+      React.useEffect(() => {
+        document.querySelectorAll('.cursor, .row.cursor').forEach(el => {
+          el.style.animation = t.blink ? '' : 'none';
+          if (!t.blink) el.style.opacity = '1';
+        });
+      }, [t.blink]);
+
+      return (
+        <TweaksPanel title="Tweaks">
+          <TweakSection title="Tema">
+            <TweakRadio
+              label="Apariencia"
+              value={t.theme}
+              onChange={v => setTweak('theme', v)}
+              options={[
+                {value:'dark', label:'Yaru oscuro'},
+                {value:'light', label:'Yaru claro'},
+                {value:'aubergine', label:'Aubergine'},
+              ]}
+            />
+            <TweakColor
+              label="Acento"
+              value={t.accent}
+              onChange={v => setTweak('accent', v)}
+              options={[
+                {value:'orange', color:'#E27D60'},
+                {value:'blue', color:'#7FA9C4'},
+                {value:'violet', color:'#B08AB8'},
+                {value:'green', color:'#8FB87A'},
+              ]}
+            />
+          </TweakSection>
+          <TweakSection title="Entorno">
+            <TweakToggle label="Fondo de escritorio" value={t.showWallpaper} onChange={v => setTweak('showWallpaper', v)} />
+            <TweakToggle label="Barra superior GNOME" value={t.showTopbar} onChange={v => setTweak('showTopbar', v)} />
+          </TweakSection>
+          <TweakSection title="Estado de carga">
+            <TweakSlider label="Progreso" min={0} max={100} step={1} value={t.progress} onChange={v => setTweak('progress', v)} suffix="%" />
+            <TweakToggle label="Cursor parpadeante" value={t.blink} onChange={v => setTweak('blink', v)} />
+          </TweakSection>
+        </TweaksPanel>
+      );
+    }
+
+    // Custom TweakColor that supports `options` with {value,color} entries (extends base)
+    const _TweakColor = window.TweakColor;
+    window.TweakColor = function CustomTweakColor(props) {
+      if (props.options && props.options[0] && typeof props.options[0] === 'object' && 'color' in props.options[0]) {
+        return (
+          <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'6px 0'}}>
+            <span style={{fontSize:12, color:'var(--tw-fg, #ddd)'}}>{props.label}</span>
+            <div style={{display:'flex', gap:6}}>
+              {props.options.map(o => (
+                <button
+                  key={o.value}
+                  onClick={() => props.onChange(o.value)}
+                  style={{
+                    width: 22, height: 22, borderRadius: '50%',
+                    background: o.color,
+                    border: props.value === o.value ? '2px solid #fff' : '2px solid transparent',
+                    boxShadow: props.value === o.value ? `0 0 0 2px ${o.color}` : 'none',
+                    cursor: 'pointer'
+                  }}
+                  aria-label={o.value}
+                />
+              ))}
+            </div>
+          </div>
+        );
+      }
+      return _TweakColor ? <_TweakColor {...props} /> : null;
+    };
+
+    ReactDOM.createRoot(document.getElementById('tweaks-root')).render(<App />);
+  </script>
+
+  <!-- Live log animation: append a new line every few seconds, cap at ~10 -->
+  <script>
+    (function () {
+      const log = document.getElementById('log');
+      if (!log) return;
+      const pool = [
+        {lvl:'info', ts:'12:04:07', msg:'batch <span class="em">9/13</span> insertado <span class="dim">(9 000 filas · 1.61 s)</span>'},
+        {lvl:'info', ts:'12:04:08', msg:'batch <span class="em">10/13</span> insertado <span class="dim">(10 000 filas · 1.79 s)</span>'},
+        {lvl:'warn', ts:'12:04:09', msg:'duplicado ignorado · pk <span class="em">2024-04421</span> ya existe'},
+        {lvl:'info', ts:'12:04:10', msg:'batch <span class="em">11/13</span> insertado <span class="dim">(11 000 filas · 1.92 s)</span>'},
+        {lvl:'info', ts:'12:04:11', msg:'batch <span class="em">12/13</span> insertado <span class="dim">(12 000 filas · 2.04 s)</span>'},
+        {lvl:'ok',   ts:'12:04:12', msg:'batch final <span class="em">13/13</span> · <span class="em">12 500 filas</span> insertadas'},
+        {lvl:'ok',   ts:'12:04:12', msg:'verificando integridad referencial <span class="dim">(3 fk)</span>'},
+        {lvl:'ok',   ts:'12:04:13', msg:'COMMIT · <span class="tag">proceso_id=42</span> <span class="tag">status=DONE</span>'},
+      ];
+      let i = 0;
+      function tick() {
+        // remove cursor from previous last line
+        log.querySelectorAll('.cursor').forEach(c => c.remove());
+        if (i >= pool.length) { i = 0; }
+        const e = pool[i++];
+        const div = document.createElement('div');
+        div.className = 'line';
+        div.innerHTML = `<span class="ts">${e.ts}</span><span class="lvl ${e.lvl}">${e.lvl.toUpperCase().padEnd(4,' ')}</span><span class="msg">${e.msg}<span class="cursor"></span></span>`;
+        div.style.opacity = '0';
+        div.style.transform = 'translateY(4px)';
+        div.style.transition = 'opacity .25s ease, transform .25s ease';
+        log.appendChild(div);
+        // trim
+        while (log.children.length > 9) log.removeChild(log.firstElementChild);
+        requestAnimationFrame(() => {
+          div.style.opacity = '1';
+          div.style.transform = 'translateY(0)';
+        });
+      }
+      setInterval(tick, 2400);
+    })();
+  </script>
+</body>
+</html>

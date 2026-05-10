@@ -1,0 +1,22 @@
+[package]
+name = "csv2mysql"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "csv2mysql"
+path = "src/main.rs"
+
+[dependencies]
+csv2mysql-core = { path = "../core" }
+csv2mysql-tui = { path = "../tui" }
+anyhow.workspace = true
+clap.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+sqlx.workspace = true
+
+[dev-dependencies]

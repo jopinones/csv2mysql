@@ -1,0 +1,24 @@
+# Rust
+target/
+Cargo.lock
+**/*.rs.bk
+*.pdb
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+
+# Config local
+configs/local.toml
+.env
+
+# Test data
+test_data/
+*.csv.bak
