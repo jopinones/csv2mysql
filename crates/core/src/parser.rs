@@ -49,17 +49,20 @@ impl CsvParser {
             }
         }
 
+        // Leemos como bytes para soportar cualquier encoding (Windows-1252, UTF-8, etc.)
+        // Los delimitadores candidatos son todos ASCII, válidos en cualquier encoding.
         let mut file = File::open(path)?;
-        let mut buffer = String::new();
-        file.read_to_string(&mut buffer)?;
-        
-        let first_line = buffer.lines().next().unwrap_or("");
-        
-        // Contar ocurrencias de posibles delimitadores
-        let comma_count = first_line.matches(',').count();
-        let semicolon_count = first_line.matches(';').count();
-        let tab_count = first_line.matches('\t').count();
-        let pipe_count = first_line.matches('|').count();
+        let mut buffer = vec![0u8; MAX_SNIFF_BYTES];
+        let n = file.read(&mut buffer)?;
+        buffer.truncate(n);
+
+        // Tomamos solo la primera línea (hasta \n)
+        let first_line = buffer.split(|&b| b == b'\n').next().unwrap_or(&[]);
+
+        let comma_count     = first_line.iter().filter(|&&b| b == b',').count();
+        let semicolon_count = first_line.iter().filter(|&&b| b == b';').count();
+        let tab_count       = first_line.iter().filter(|&&b| b == b'\t').count();
+        let pipe_count      = first_line.iter().filter(|&&b| b == b'|').count();
 
         if tab_count > 0 {
             Ok('\t')

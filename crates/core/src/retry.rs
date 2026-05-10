@@ -52,25 +52,37 @@ impl RetryPolicy {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::{
+        atomic::{AtomicU32, Ordering},
+        Arc,
+    };
 
     #[tokio::test]
     async fn test_retry_success_on_second_attempt() {
         let policy = RetryPolicy::default();
-        let mut call_count = 0;
+        let call_count = Arc::new(AtomicU32::new(0));
 
+        let counter = call_count.clone();
         let result = policy
-            .execute(|| async {
-                call_count += 1;
-                if call_count == 1 {
-                    Err(Csv2MysqlError::General("Fallo temporal".to_string()))
-                } else {
-                    Ok(42)
+            .execute(move || {
+                let counter = counter.clone();
+                async move {
+                    let n = counter.fetch_add(1, Ordering::SeqCst);
+                    if n == 0 {
+                        // Io es retryable; General no lo es (hubiera terminado sin reintentar)
+                        Err(Csv2MysqlError::Io(std::io::Error::new(
+                            std::io::ErrorKind::ConnectionRefused,
+                            "Fallo temporal",
+                        )))
+                    } else {
+                        Ok(42)
+                    }
                 }
             })
             .await;
 
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), 42);
-        assert_eq!(call_count, 2);
+        assert_eq!(call_count.load(Ordering::SeqCst), 2);
     }
 }

@@ -118,14 +118,13 @@ impl SchemaInferrer {
         } else if values.iter().all(|v| is_boolean(v)) {
             Ok(SqlType::Boolean)
         } else {
-            // VARCHAR con longitud basada en el máximo encontrado
-            let max_len = values.iter().map(|v| v.len()).max().unwrap_or(255);
-            let length = ((max_len as f64 * 1.5) as u16).min(2048);
-            
-            if length > 2048 {
+            // VARCHAR con longitud basada en el máximo encontrado; >21845 → TEXT (límite utf8 MySQL)
+            let max_len = values.iter().map(|v| v.len()).max().unwrap_or(0);
+            let length_usize = (max_len * 3 / 2).max(1);
+            if length_usize > 21845 {
                 Ok(SqlType::Text)
             } else {
-                Ok(SqlType::VarChar { length })
+                Ok(SqlType::VarChar { length: length_usize as u16 })
             }
         }
     }

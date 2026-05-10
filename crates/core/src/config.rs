@@ -93,13 +93,15 @@ impl Default for AppConfig {
 
 pub fn load_dataset_config<P: AsRef<Path>>(path: P) -> Result<DatasetConfig> {
     let content = std::fs::read_to_string(path)?;
-    let config: DatasetConfig = toml::from_str(&content)?;
+    let config: DatasetConfig = toml::from_str(&content)
+        .map_err(|e| Csv2MysqlError::Parse(e.to_string()))?;
     Ok(config)
 }
 
 pub fn load_app_config<P: AsRef<Path>>(path: P) -> Result<AppConfig> {
     let content = std::fs::read_to_string(path)?;
-    let config: AppConfig = toml::from_str(&content)?;
+    let config: AppConfig = toml::from_str(&content)
+        .map_err(|e| Csv2MysqlError::Parse(e.to_string()))?;
     Ok(config)
 }
 

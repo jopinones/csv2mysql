@@ -81,8 +81,14 @@ impl Loader {
     }
 
     fn build_insert_statement(&self, schema: &TableSchema, rows: &[DataRow]) -> String {
-        let columns: Vec<String> = schema.columns.iter().map(|c| c.name.clone()).collect();
-        let col_list = columns.join(", ");
+        let quote_ident = |s: &str| format!("`{}`", s.replace('`', "``"));
+
+        let col_list = schema
+            .columns
+            .iter()
+            .map(|c| quote_ident(&c.name))
+            .collect::<Vec<_>>()
+            .join(", ");
 
         let values: Vec<String> = rows
             .iter()
@@ -104,7 +110,7 @@ impl Loader {
 
         format!(
             "INSERT INTO {} ({}) VALUES {}",
-            schema.table_name,
+            quote_ident(&schema.table_name),
             col_list,
             values.join(", ")
         )
